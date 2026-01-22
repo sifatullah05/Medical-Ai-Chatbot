@@ -6,6 +6,6 @@ python-dotenv==1.2.1
 langchain-pinecone==0.2.13
 langchain-community==0.4.1
 langchain-core == 1.2.7
-flask == 3.1.2
+streamlit == 1.53.0
 groq == 1.0.0
 -e .
