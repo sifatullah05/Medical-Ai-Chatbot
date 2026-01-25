@@ -1,50 +1,50 @@
-from pinecone import Pinecone, ServerlessSpec
-from langchain_pinecone import PineconeVectorStore
-from src.embeddings import hugging_face_embeddings, text_split
-from src.loader import minimal_docs
 import os
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_pinecone import PineconeVectorStore
+from dotenv import load_dotenv
+from pinecone import Pinecone, ServerlessSpec
+from src.loader import *
+
+
+load_dotenv()
+
+def huggingface_embedding():
+    embeddings = HuggingFaceEmbeddings(model_name = "sentence-transformers/all-MiniLM-L6-v2")
+    return embeddings
+
+embeddings = huggingface_embedding()
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-if not PINECONE_API_KEY:
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+
+if not PINECONE_API_KEY :
     raise ValueError("PINECONE_API_KEY is not set in .env!")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY is not set in .env!")
+
+
 
 pinecone_api_key = PINECONE_API_KEY
-
-pc = Pinecone(api_key = pinecone_api_key)
-
+pc = Pinecone(api_key=pinecone_api_key)
 index_name = "medical-chatbot"
 
 if not pc.has_index(index_name):
     pc.create_index(
-        name= index_name,
+        name=index_name,
         dimension=384,
-        metric= "cosine",
-        spec= ServerlessSpec(cloud="aws", region="us-east-1")
+        metric="cosine",
+        spec=ServerlessSpec(cloud="aws", region="us-east-1")
     )
 index = pc.Index(index_name)
 
 
-vectorstore = PineconeVectorStore.from_existing_index(
-    index_name=index_name,
-    embedding=hugging_face_embeddings()
+vector_store = PineconeVectorStore.from_documents(
+    documents = text_chunks,
+    index_name = index_name,
+    embedding=embeddings
 )
 
-stats = vectorstore.index.describe_index_stats()
-
-vector_count = (
-    stats.get("namespaces", {})
-         .get("", {})
-         .get("vector_count", 0)
-)
-
-if vector_count == 0:
-    vectorstore = PineconeVectorStore.from_documents(
-        documents=text_split(minimal_docs),
-        index_name=index_name,
-        embedding=hugging_face_embeddings()
-    )
-
-retriever = vectorstore.as_retriever(
+retriever = vector_store.as_retriever(
     search_type = "similarity",
-    search_kwargs = {"k":3}
+   search_kwargs = {"k":4}
 )

@@ -1,30 +1,42 @@
-from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
+from langchain_community.document_loaders import DirectoryLoader,PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+import os
 from typing import List
 from langchain_core.documents import Document
 
-def load_pdf_file(data):
+import os
+from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+def load_pdf_file():
     loader = DirectoryLoader(
-        data,
+        DATA_DIR,
         glob="*.pdf",
         loader_cls=PyPDFLoader
     )
     document = loader.load()
     return document
-extract_data = load_pdf_file(data="../data/")
 
-def filter_to_minimal_docs(docs: List[Document]) -> List[Document]:
-    """
-    Given a list of Document objects, return a new list of Document objects
-    containing only 'source' in metadata and the original page_content.
-    """
+extract_data = load_pdf_file()
+
+
+def filter_to_minimal_docs(docs: List[Document]) ->List[Document]:
     minimal_docs: List[Document] = []
     for doc in docs:
         src = doc.metadata.get("source")
         minimal_docs.append(
             Document(
                 page_content=doc.page_content,
-                metadata={"source": src}
+                metadata = {"source":src}
             )
         )
     return minimal_docs
 minimal_docs = filter_to_minimal_docs(extract_data)
+
+def text_split(minimal_docs):
+    text_split = RecursiveCharacterTextSplitter(chunk_size = 500, chunk_overlap=50)
+    text_chunks = text_split.split_documents(minimal_docs)
+    return text_chunks
+text_chunks = text_split(minimal_docs)

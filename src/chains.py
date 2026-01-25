@@ -1,20 +1,14 @@
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import InMemoryChatMessageHistory
-from operator import itemgetter
 from langchain_core.output_parsers import StrOutputParser
-from langchain_groq import ChatGroq
 from langchain_core.runnables import RunnableLambda
-from src.vectorstore import retriever
-import os
-
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY is not set in .env!")
+from src.vectorstore import *
 
 chat_model = ChatGroq(
     model = "openai/gpt-oss-20b",
-    temperature = 0
+    temperature = 0 
 )
 
 SYSTEM_PROMPT = """
@@ -44,39 +38,38 @@ STYLE RULES:
 
 Question: {question}
 """
+
 prompt = ChatPromptTemplate.from_template(SYSTEM_PROMPT)
 
 store = {}
-
 def get_history(session_id: str):
     if session_id not in store:
         store[session_id] = InMemoryChatMessageHistory()
     return store[session_id]
+
 def build_context(question: str):
     docs = retriever.invoke(question)
     return "\n".join(doc.page_content for doc in docs)
-def format_history(messages):
-    if not messages:
+def format_history(message):
+    if not message:
         return "No previous conversation."
-    return "\n".join(f"{m.type.capitalize()}: {m.content}" for m in messages)
+    return "\n".join(f"{m.type.capitalize()}: {m.content}" for m in message)
 
 
 base_chain = (
     {
-        "question": RunnableLambda(lambda x: x["question"]),
+        "question":RunnableLambda(lambda x:x["question"]),
         "context": RunnableLambda(lambda x: build_context(x["question"])),
-        "history": RunnableLambda(
-            lambda x: format_history(x["history"])  
-        ),
+        "history": RunnableLambda(lambda x: format_history(x["history"])),
     }
     | prompt
     | chat_model
-    | StrOutputParser()
+    |StrOutputParser()
 )
 
 medical_chain = RunnableWithMessageHistory(
     base_chain,
     get_history,
     input_messages_key="question",
-    history_messages_key="history",
+    history_messages_key="history"
 )
